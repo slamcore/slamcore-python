@@ -1,0 +1,21 @@
+#! /usr/bin/env python
+
+from setuptools import setup
+
+setup(
+    name='slamcore',
+    description='Slamcore C++ API - Python Bindings',
+    author='Slamcore',
+    author_email='support@slamcore.com',
+    url='https://www.slamcore.com',
+    version="@SLAMCORE_PYTHON_VERSION@@SLAMCORE_PYTHON_LOCAL_VERSION@",
+    packages=['slamcore'],
+    package_dir={'slamcore': 'slamcore'},
+    package_data={'slamcore': ['@SLAMCORE_PYTHON_SO_FULL_NAME@', '_slamcore_python/*.pyi', 'py.typed']},
+    license='proprietary',
+    platform='@CMAKE_SYSTEM_NAME@-@CMAKE_SYSTEM_PROCESSOR@',
+    zip_safe=False,
+    python_requires='==@PYTHON_VERSION_MAJOR@.@PYTHON_VERSION_MINOR@.*',
+    install_requires=['numpy'],
+    has_ext_modules=lambda: True,
+)

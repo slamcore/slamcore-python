@@ -1,0 +1,221 @@
+﻿---
+IncludeCategories:
+  # Slamcore headers.
+  - Regex:           '"(slamcore)\/'
+    Priority:        1
+  # Boost.
+  - Regex:           '<(boost)\/'
+    Priority:        2
+  # cereal.
+  - Regex:           '<(cereal)\/'
+    Priority:        3
+  # ceres.
+  - Regex:           '<(ceres)\/'
+    Priority:        4
+  # Eigen.
+  - Regex:           '<(Eigen)\/'
+    Priority:        5
+  # glog.
+  - Regex:           '<(glog)\/'
+    Priority:        6
+  # OpenCV.
+  - Regex:           '<(opencv2)\/'
+    Priority:        7
+  # OpenGV.
+  - Regex:           '<(opengv)\/'
+    Priority:        8
+  # std-lib
+  - Regex:           '<([a-z_]+)>'
+    Priority:        100
+  # everything else with ""
+  - Regex:           '".*"'
+    Priority:        99
+  # everything else with <>
+  - Regex:           '<.*>'
+    Priority:        98
+
+# Align parameters of a method, e.g:
+# foo(arg1
+#     arg2);
+AlignAfterOpenBracket: Align
+# AlignArrayOfStructures: Left # This seems to crash!
+# Consecutive assignments (=) are not aligned by the = operator
+AlignConsecutiveAssignments: false
+# Consecutive declarations are not aligned by the variable name
+AlignConsecutiveDeclarations: false
+# For macros, the explicit `\` characters are aligned with as little whitespace as possible
+AlignEscapedNewlines: Left
+# Horizontally align operands of binary and ternary expressions.
+AlignOperands: true
+# Consecutive inline comments will be aligned at their `//`
+AlignTrailingComments: true
+# When all parameters can't fit on one line, allow them to be in a single horizontal line, e.g:
+# thisIsAVeryLongFunctionName(
+  # longArgOne, longArgTwo);
+AllowAllArgumentsOnNextLine: true
+# If the parameters of a function won't fit on the same line as the method name, they must be
+# aligned vertically
+AllowAllParametersOfDeclarationOnNextLine: false
+# Don't use inline blocks if they would fit
+AllowShortBlocksOnASingleLine: false
+# Only allow single line function definition (method signature and {...}) if it is inline
+AllowShortFunctionsOnASingleLine: Inline
+# Only allow single line lambdas if they are used inline in a method argument
+AllowShortLambdasOnASingleLine: Inline
+# Don't use single line loop
+AllowShortLoopsOnASingleLine: false
+# Put return type in same line as method name if it fits
+AlwaysBreakAfterReturnType: None
+# Don't break after `=` when assigning multi-line string
+AlwaysBreakBeforeMultilineStrings: false
+# Always have the `template <...>` on it's own line
+AlwaysBreakTemplateDeclarations: true
+# Inline enums are allowed on a single line, e.g: enum { A, B } myEnum;
+AllowShortEnumsOnASingleLine: true
+# Don't bin-pack arguments
+BinPackArguments: false
+# Don't bin-pack parameters
+BinPackParameters: false
+# Have binary operators aligned on the left side
+BreakBeforeBinaryOperators: NonAssignment
+# Line break before { and } in the following cases
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+# Break before the ?
+BreakBeforeTernaryOperators: true
+# Break after the : in an initializer list
+BreakConstructorInitializers: AfterColon
+# Break after each comma in a inheritance list
+BreakInheritanceList: AfterComma
+# Don't reflow string literals
+BreakStringLiterals: false
+# The column limit (clang-format will attempt to keep everything below this)
+ColumnLimit: 100
+# Indent for initializer list
+ConstructorInitializerIndentWidth: 2
+# Extra indent when clang-format has to break a statement over multiple lines
+ContinuationIndentWidth: 2
+Cpp11BracedListStyle: true
+# Don't try and look at current code to get pointer (*&) alignment
+DerivePointerAlignment: false
+# No empty line after `public`, `private` etc
+EmptyLineAfterAccessModifier: Never
+# Add empty line before `public`, `private` etc if there was code between them
+EmptyLineBeforeAccessModifier: LogicalBlock
+# Add comments to closing namespace
+FixNamespaceComments: true
+# Group includes in separate blocks as defined above
+IncludeBlocks: Regroup
+# Files with this suffix are counted as source files
+# (their corresponding header will be always at the top)
+IncludeIsMainSourceRegex: '_impl.hpp'
+# Access modifiers are kept at the same indentation as the class
+IndentAccessModifiers: false
+# `case` `{}` are kept at the same indentation as the `case`
+IndentCaseBlocks: false
+# `case` labels are indented relative to the corresponding `switch`
+IndentCaseLabels: true
+# Code withing `extern "C"` blocks are not indented
+IndentExternBlock: NoIndent
+# Pre-Processor Macros are not indented
+IndentPPDirectives: None
+# Indentation is 2 characters
+IndentWidth: 2
+# The function name is not indented relative to the return type in a declaration
+IndentWrappedFunctionNames: false
+# Remove any empty lines at the start of a block
+KeepEmptyLinesAtTheStartOfBlocks: false
+# Align lambda body with the []()
+LambdaBodyIndentation: Signature
+Language: Cpp
+# Never have more than a single empty line between code
+MaxEmptyLinesToKeep: 1
+# No indentation added in a namespace block
+NamespaceIndentation: None
+# Put initializer list on same line as constructor name if it fits
+PackConstructorInitializers: CurrentLine
+# Left align pointer (*&)
+PointerAlignment: Left
+# Use QualifierOrder for what side to put qualifiers
+QualifierAlignment: Custom
+# Order qualifiers as based here (with those to the left of `type` to the left and right the right)
+QualifierOrder: ['static', 'inline', 'constexpr', 'volatile', 'const', 'type', 'restrict']
+# Allow clang-format to add line breaks to fit a comment into the column width
+ReflowComments: false
+# Don't add lines between method definition blocks (it messes with function-try-catch blocks)
+SeparateDefinitionBlocks: Leave
+# Sort the includes alphabetically
+SortIncludes: true
+# Sort `using foo::bar` declarations alphabetically
+SortUsingDeclarations: true
+# No space after (void)cStyleCast
+SpaceAfterCStyleCast: false
+# No space after `!`
+SpaceAfterLogicalNot: false
+# Space after `template` before `<`
+SpaceAfterTemplateKeyword: true
+# No space between `case` and `:` in `switch` statement
+SpaceBeforeCaseColon: false
+# Space before `=` operator
+SpaceBeforeAssignmentOperators: true
+# No space before `{` when constructing an object
+SpaceBeforeCpp11BracedList: false
+# Add space between `)` and `:` in constructor definition
+SpaceBeforeCtorInitializerColon: true
+# Add space between class name and inheritance `:`
+SpaceBeforeInheritanceColon: true
+# Space between `if`, `for` etc and opening `(`
+SpaceBeforeParens: ControlStatements
+# Space between range-for iteration object and `:`
+SpaceBeforeRangeBasedForLoopColon: true
+# Don't have any space between object and `[` (i.e in arrays)
+SpaceBeforeSquareBrackets: false
+# Add space in empty inline block, e.g: fooBar() { }
+SpaceInEmptyBlock: true
+# Don't add any empty space in empty parenthesis, e.g: foobar();
+SpaceInEmptyParentheses: false
+# Ensure there is a single space between code and inline comment
+SpacesBeforeTrailingComments: 1
+# Don't add a space in template definitions or calls between the `<>`
+SpacesInAngles: Never
+# Don't add spaces around the brackets in an `if`, `while` etc
+SpacesInConditionalStatement: false
+# Must have at least one space between `//` and start of inline comment
+SpacesInLineCommentPrefix:
+  Maximum: -1
+  Minimum: 1
+# No spaces between the `[]`
+SpacesInSquareBrackets: false
+Standard: c++17
+TabWidth: 2
+ExperimentalAutoDetectBinPacking: false
+
+PenaltyBreakAssignment: 30
+PenaltyBreakBeforeFirstCallParameter: 60
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakOpenParenthesis: 0
+PenaltyBreakString: 1000
+PenaltyBreakTemplateDeclaration: 0
+PenaltyExcessCharacter: 10
+PenaltyReturnTypeOnItsOwnLine: 5
+PenaltyIndentedWhitespace: 0
+
+...
