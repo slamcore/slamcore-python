@@ -149,7 +149,7 @@ def test_subsystem(
     fetched_at_least_once = False
 
     while not end_of_data:
-        while slam_system.spin_once(datetime.timedelta(milliseconds=100)):
+        while slam_system.spin(datetime.timedelta(milliseconds=100)):
             if subsystem.fetch(datetime.timedelta(0.1)):
                 test_func(subsystem)
                 fetched_at_least_once = True

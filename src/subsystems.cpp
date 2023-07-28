@@ -21,13 +21,13 @@
 
 #include "slamcore/subsystems/height_mapping.hpp"
 #include "slamcore/subsystems/optimised_trajectory.hpp"
+#include "slamcore/subsystems/panoptic_segmentation.hpp"
 #include "slamcore/subsystems/sensors_info.hpp"
 
+#include <matrix_converter.hpp>
 #include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
-#include <matrix_converter.hpp>
 
 namespace py = pybind11;
 
@@ -86,6 +86,27 @@ void subsystems(py::module& module)
     .def_property_readonly("trajectory",
                            &OptimisedTrajectorySubsystemInterface::getTrajectory,
                            py::return_value_policy::reference_internal);
+
+  py::class_<PanopticSegmentationRunnerInterface, std::shared_ptr<PanopticSegmentationRunnerInterface>>(
+    subsystemsModule, "PanopticSegmentationRunnerInterface")
+    .def("run_inference", &PanopticSegmentationRunnerInterface::runInference, py::arg("image"))
+    .def_property_readonly("label_mapping",
+                           &PanopticSegmentationRunnerInterface::getLabelMapping,
+                           py::return_value_policy::reference_internal);
+
+  py::class_<PanopticSegmentationSubsystemInterface,
+             std::shared_ptr<PanopticSegmentationSubsystemInterface>>(subsystemsModule,
+                                                                      "PanopticSegmentationSubsystem")
+    .def("register_plugin",
+         &PanopticSegmentationSubsystemInterface::registerPlugin,
+         py::arg("path"),
+         py::call_guard<py::gil_scoped_release>())
+    .def("register_default_plugin",
+         &PanopticSegmentationSubsystemInterface::registerDefaultPlugin,
+         py::call_guard<py::gil_scoped_release>())
+    .def("get_runner",
+         &PanopticSegmentationSubsystemInterface::getRunner,
+         py::return_value_policy::reference_internal);
 }
 
 } // namespace slamcore::python

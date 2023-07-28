@@ -49,7 +49,7 @@ def __process(slam_system: slamcore.SLAMSystem) -> None:
     slam_system.start()
 
     while not end_of_data:
-        while slam_system.spin_once(datetime.timedelta(milliseconds=100)):
+        while slam_system.spin(datetime.timedelta(milliseconds=100)):
             continue
         else:
             logging.warning("timeout")

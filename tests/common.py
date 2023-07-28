@@ -133,6 +133,43 @@ def check_pose(pose):
     )
     assert pose.covariance is None
 
+def check_smooth_pose(pose):
+    """
+    Exercises methods and properties of SmoothPose.
+    """
+    expected_sensor_id = (slamcore.SensorType.SLAM, 0)
+    expected_reference_frame = slamcore.ReferenceFrame(
+        slamcore.ReferenceFrameCategory.World, 1
+    )
+    check_measurement_point(pose, expected_sensor_id, expected_reference_frame)
+    assert isinstance(pose.rotation, numpy.ndarray)
+    assert pose.rotation.size == 4
+    assert isinstance(pose.translation, numpy.ndarray)
+    assert pose.translation.size == 3
+    assert pose.child_reference_frame == slamcore.ReferenceFrame(
+        slamcore.ReferenceFrameCategory.Body, 0
+    )
+    assert pose.covariance is None
+
+def check_slam_status(slam_status):
+    """
+    Exercises methods and properties of SLAMStatus.
+    """
+    assert isinstance(slam_status.tracking_status, slamcore.TrackingStatus)
+    assert slam_status.tracking_status in (
+            slamcore.TrackingStatus.Not_Initialised,
+            slamcore.TrackingStatus.Ok,
+            slamcore.TrackingStatus.Lost,
+    )
+
+    assert isinstance(slam_status.events, slamcore.SLAMEventList)
+    for event in slam_status.events:
+        assert event in (
+            slamcore.SLAMEvent.Relocalisation,
+            slamcore.SLAMEvent.LoopClosure,
+            slamcore.SLAMEvent.ImuInitialization,
+            slamcore.SLAMEvent.IntersessionLocalisation,
+        )
 
 def check_multiframe(multiframe: slamcore.MultiFrame):
     """

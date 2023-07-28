@@ -4,14 +4,14 @@ on: push
 
 env:
   PACKAGE_NAME: slamcore-dev
-  PACKAGE_VERSION: 23.01.49
+  PACKAGE_VERSION: 23.04.31
   DATASET: minimal
 
 jobs:
   build:
     strategy:
       matrix:
-        image: ["ubuntu:18.04", "ubuntu:20.04"]
+        image: ["ubuntu:18.04", "ubuntu:20.04", "ubuntu:22.04"]
 
     runs-on: ubuntu-latest
     container: ${{matrix.image}}
@@ -19,6 +19,7 @@ jobs:
     outputs:
       WHEEL_NAME_bionic: ${{ steps.build-wheel.outputs.WHEEL_NAME_bionic }}
       WHEEL_NAME_focal: ${{ steps.build-wheel.outputs.WHEEL_NAME_focal }}
+      WHEEL_NAME_jammy: ${{ steps.build-wheel.outputs.WHEEL_NAME_jammy }}
 
     steps:
     - name: Checkout Slamcore Python bindings
@@ -76,7 +77,7 @@ jobs:
 
     strategy:
       matrix:
-        image: ["ubuntu:18.04", "ubuntu:20.04"]
+        image: ["ubuntu:18.04", "ubuntu:20.04", "ubuntu:22.04"]
         test_suite: ["streams", "subsystems", "misc"]
 
     runs-on: ubuntu-latest
@@ -110,6 +111,7 @@ jobs:
       run: |
         WHEEL_NAME_bionic=${{ toJSON(needs.build.outputs.WHEEL_NAME_bionic) }}
         WHEEL_NAME_focal=${{ toJSON(needs.build.outputs.WHEEL_NAME_focal) }}
+        WHEEL_NAME_jammy=${{ toJSON(needs.build.outputs.WHEEL_NAME_jammy) }}
         echo "WHEEL_NAME=$WHEEL_NAME_${{env.OS_CODENAME}}" >> $GITHUB_ENV
 
     - name: Download Slamcore wheel package

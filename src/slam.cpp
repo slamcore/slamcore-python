@@ -19,10 +19,12 @@
  *
  ******************************************************************************/
 
+#include "slamcore/semantic/panoptic_bounding_box_3d_list.hpp"
 #include "slamcore/slam/slam_create.hpp"
 #include "slamcore/slam/system_configuration.hpp"
 #include "slamcore/subsystems/height_mapping.hpp"
 #include "slamcore/subsystems/optimised_trajectory.hpp"
+#include "slamcore/subsystems/panoptic_segmentation.hpp"
 #include "slamcore/subsystems/sensors_info.hpp"
 
 #include <pybind11/chrono.h>
@@ -45,10 +47,8 @@ namespace detail
 
 void slamcoreInit(LogSeverity severity, std::function<void(const LogMessageInterface*)> pyCallback)
 {
-  auto cppCallback = [pyCallback](const LogMessageInterface& message)
-  {
-    pyCallback(&message);
-  };
+  auto cppCallback = pyCallback ? ([pyCallback](const auto& message) { pyCallback(&message); })
+                                : LogCallbackT(nullptr);
 
   ::slamcore::slamcoreInit(severity, cppCallback);
 }
@@ -122,7 +122,11 @@ void slam(py::module& module)
     .value("MetaData", Stream::MetaData)
     .value("FrameSync", Stream::FrameSync)
     .value("ErrorCode", Stream::ErrorCode)
-    .value("LocalPointCloud", Stream::LocalPointCloud);
+    .value("LocalPointCloud", Stream::LocalPointCloud)
+    .value("SmoothPose", Stream::SmoothPose)
+    .value("SLAMStatus", Stream::SLAMStatus)
+    .value("PanopticSegmentationResult", Stream::PanopticSegmentationResult)
+    .value("PanopticBoundingBox3D", Stream::PanopticBoundingBox3D);
 
   py::enum_<Property>(coreModule, "Property")
     .value("ModelName", Property::ModelName)
@@ -197,6 +201,10 @@ void slam(py::module& module)
         {
           return system.isSubsystemSupported<OptimisedTrajectorySubsystemInterface>();
         }
+        else if (type.is(py::type::handle_of<PanopticSegmentationSubsystemInterface>()))
+        {
+          return system.isSubsystemSupported<PanopticSegmentationSubsystemInterface>();
+        }
 
         throw std::runtime_error("type argument was not recognised!");
       },
@@ -215,6 +223,11 @@ void slam(py::module& module)
       "get_trajectory_subsystem",
       [](SLAMSubsystemAccessInterface& system)
       { return system.getSubsystem<OptimisedTrajectorySubsystemInterface>(); },
+      py::return_value_policy::reference_internal)
+    .def(
+      "get_panoptic_segmentation_subsystem",
+      [](SLAMSubsystemAccessInterface& system)
+      { return system.getSubsystem<PanopticSegmentationSubsystemInterface>(); },
       py::return_value_policy::reference_internal);
 
   py::class_<SLAMAsyncTasksInterface>(slamModule, "SLAMAsyncTasksInterface")
@@ -231,31 +244,25 @@ void slam(py::module& module)
              SLAMAsyncTasksInterface,
              PropertiesInterface<Property>>(coreModule, "SLAMSystem")
     .def(
-      "spin_once",
-      [](SLAMSystemCallbackInterface& obj) { return obj.spinOnce(); },
-      "spin once indefinitely",
+      "spin",
+      [](SLAMSystemCallbackInterface& obj) { return obj.spin(); },
+      "spin indefinitely",
       py::call_guard<py::gil_scoped_release>())
     .def(
-      "spin_once",
+      "spin",
       [](SLAMSystemCallbackInterface& obj, std::chrono::nanoseconds timeout)
-      { return obj.spinOnce(timeout); },
+      { return obj.spin(timeout); },
       py::arg("timeout"),
-      "spin once with timeout",
-      py::call_guard<py::gil_scoped_release>())
-    .def(
-      "spin_some",
-      [](SLAMSystemCallbackInterface& obj) { return obj.spinSome(); },
-      "spin all events since last call",
-      py::call_guard<py::gil_scoped_release>())
-    .def(
-      "spin_some",
-      [](SLAMSystemCallbackInterface& obj, std::chrono::nanoseconds duration)
-      { return obj.spinSome(duration); },
-      py::arg("duration"),
-      "spin events since last call until duration reached",
+      "spin with timeout",
       py::call_guard<py::gil_scoped_release>())
     .def("register_pose_callback",
          &SLAMSystemCallbackInterface::registerCallback<Stream::Pose>,
+         py::arg("callback").none(false))
+    .def("register_smooth_pose_callback",
+         &SLAMSystemCallbackInterface::registerCallback<Stream::SmoothPose>,
+         py::arg("callback").none(false))
+    .def("register_slam_status_callback",
+         &SLAMSystemCallbackInterface::registerCallback<Stream::SLAMStatus>,
          py::arg("callback").none(false))
     .def("register_video_callback",
          &SLAMSystemCallbackInterface::registerCallback<Stream::Video>,
@@ -280,6 +287,12 @@ void slam(py::module& module)
          py::arg("callback").none(false))
     .def("register_local_point_cloud_callback",
          &SLAMSystemCallbackInterface::registerCallback<Stream::LocalPointCloud>,
+         py::arg("callback").none(false))
+    .def("register_panoptic_segmentation_result_callback",
+         &SLAMSystemCallbackInterface::registerCallback<Stream::PanopticSegmentationResult>,
+         py::arg("callback").none(false))
+    .def("register_panoptic_bounding_box_callback",
+         &SLAMSystemCallbackInterface::registerCallback<Stream::PanopticBoundingBox3D>,
          py::arg("callback").none(false));
 
   py::enum_<DataSource>(coreModule, "DataSource")
@@ -289,7 +302,7 @@ void slam(py::module& module)
     .value("AutoDetect", DataSource::AutoDetect);
 
   py::bind_vector<std::vector<DataSource>>(coreModule, "VectorDataSource");
-  
+
   v0::SystemConfiguration defaultConfigValues;
   py::class_<v0::SystemConfiguration>(coreModule, "SystemConfiguration")
     .def(py::init<std::vector<DataSource>,   // Sources
@@ -355,10 +368,14 @@ void slam(py::module& module)
   coreModule.def("init",
                  &detail::slamcoreInit,
                  py::arg("severity") = LogSeverity::Warning,
-                 py::arg("callback") = nullptr);
-  coreModule.def("deinit", &slamcoreDeinit);
+                 py::arg("callback").none(true) = nullptr,
+                 py::call_guard<py::gil_scoped_release>());
+  coreModule.def("deinit", &slamcoreDeinit, py::call_guard<py::gil_scoped_release>());
 
-  coreModule.def("create_slam_system", &detail::createSLAMSystem, py::arg("configuration"));
+  coreModule.def("create_slam_system",
+                 &detail::createSLAMSystem,
+                 py::arg("configuration"),
+                 py::call_guard<py::gil_scoped_release>());
 }
 
 } // namespace slamcore::python

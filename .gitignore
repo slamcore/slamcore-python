@@ -1,1 +1,9 @@
 /build*/
+
+# editors
+.vscode/
+.env
+
+# python
+*.pyc
+__pycache__

@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 #include "slamcore/objects/image.hpp"
+#include "slamcore/types/bounding_box_3d.hpp"
 #include "slamcore/types/multi_session_id.hpp"
 #include "slamcore/types/positioning_mode.hpp"
 #include "slamcore/types/range.hpp"
@@ -28,12 +29,12 @@
 #include "slamcore/types/sensor_id.hpp"
 #include "slamcore/types/slam_event.hpp"
 #include "slamcore/types/tracking_status.hpp"
+#include "slamcore/types/transform.hpp"
 
+#include <matrix_converter.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
-#include <matrix_converter.hpp>
 
 #include <sstream>
 
@@ -122,7 +123,8 @@ void types(pybind11::module& module)
     .value("Body", ReferenceFrameCategory::Body)
     .value("Odometry", ReferenceFrameCategory::Odometry)
     .value("LIDAR", ReferenceFrameCategory::LIDAR)
-    .value("GPS", ReferenceFrameCategory::GPS);
+    .value("GPS", ReferenceFrameCategory::GPS)
+    .value("Anchor", ReferenceFrameCategory::Anchor);
 
   pybind11::enum_<ImageFormat>(coreModule, "ImageFormat")
     .value("Custom", ImageFormat::Custom)
@@ -145,7 +147,8 @@ void types(pybind11::module& module)
   pybind11::enum_<SLAMEvent>(coreModule, "SLAMEvent")
     .value("Relocalisation", SLAMEvent::Relocalisation)
     .value("LoopClosure", SLAMEvent::LoopClosure)
-    .value("ImuInitialization", SLAMEvent::ImuInitialization);
+    .value("ImuInitialization", SLAMEvent::ImuInitialization)
+    .value("IntersessionLocalisation", SLAMEvent::IntersessionLocalisation);
 
   pybind11::enum_<PositioningMode>(coreModule, "PositioningMode")
     .value("Odometry_Only", PositioningMode::ODOMETRY_ONLY)
@@ -157,6 +160,16 @@ void types(pybind11::module& module)
     .def(py::init<Range2D::ValueT, Range2D::ValueT>())
     .def("min", &Range2D::min)
     .def("max", &Range2D::max);
+
+  pybind11::class_<Transform<double>>(coreModule, "Transform")
+    .def(py::init([]() { return Transform<double>::Identity(); }))
+    .def_readwrite("translation", &Transform<double>::translation)
+    .def_readwrite("rotation", &Transform<double>::rotation);
+
+  py::class_<BoundingBox3D, std::shared_ptr<BoundingBox3D>>(coreModule, "BoundingBox3D")
+    .def(py::init<>())
+    .def_readwrite("center_pose", &BoundingBox3D::centerPose)
+    .def_readwrite("size", &BoundingBox3D::size);
 }
 
 } // namespace slamcore::python

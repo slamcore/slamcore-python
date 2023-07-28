@@ -32,6 +32,8 @@ from common import (
     check_meta_data,
     check_multiframe,
     check_pose,
+    check_smooth_pose,
+    check_slam_status,
     check_sparse_map,
     check_velocity,
     create_dataset_system_config,
@@ -44,6 +46,8 @@ from common import (
     "stream_type, register_function_name, test_func",
     [
         (slamcore.Stream.Pose, "register_pose_callback", check_pose),
+        (slamcore.Stream.SmoothPose, "register_smooth_pose_callback", check_smooth_pose),
+        (slamcore.Stream.SLAMStatus, "register_slam_status_callback", check_slam_status),
         (slamcore.Stream.Video, "register_video_callback", check_multiframe),
         (slamcore.Stream.IMU, "register_imu_callback", check_IMU_list),
         (
@@ -103,7 +107,7 @@ def test_stream(
     slam_system.start()
 
     while not end_of_data:
-        while slam_system.spin_once(datetime.timedelta(milliseconds=100)):
+        while slam_system.spin(datetime.timedelta(milliseconds=100)):
             continue
         else:
             logging.warning("timeout")

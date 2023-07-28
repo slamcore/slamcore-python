@@ -85,7 +85,7 @@ slam_system.start()
 
 while True:
     try:
-        while slam_system.spin_once(0.1):
+        while slam_system.spin(0.1):
             continue # callback triggered
         else:
             logging.warning("timeout")

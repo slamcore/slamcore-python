@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 #include "slamcore/objects/error_code.hpp"
+#include "slamcore/objects/fixed_measurement_point.hpp"
 #include "slamcore/objects/frame_sync.hpp"
 #include "slamcore/objects/image.hpp"
 #include "slamcore/objects/imu_list.hpp"
@@ -32,22 +33,28 @@
 #include "slamcore/objects/point_cloud.hpp"
 #include "slamcore/objects/pose.hpp"
 #include "slamcore/objects/pose_list.hpp"
+#include "slamcore/objects/slam_event_list.hpp"
+#include "slamcore/objects/slam_status.hpp"
 #include "slamcore/objects/sparse_map.hpp"
+#include "slamcore/objects/static_pose.hpp"
 #include "slamcore/objects/task_status.hpp"
 #include "slamcore/objects/tracking_status_list.hpp"
 #include "slamcore/objects/velocity.hpp"
+#include "slamcore/semantic/panoptic_bounding_box_3d.hpp"
+#include "slamcore/semantic/panoptic_bounding_box_3d_list.hpp"
+#include "slamcore/semantic/panoptic_segmentation_result.hpp"
 #include "slamcore/types/basic.hpp"
 #include "slamcore/types/slam_event.hpp"
 #include "slamcore/types/tracking_status.hpp"
 
 #include <Eigen/Core>
 
+#include <matrix_converter.hpp>
 #include <pybind11/chrono.h>
 #include <pybind11/eigen.h>
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
-#include <matrix_converter.hpp>
 
 #include <optional>
 #include <variant>
@@ -99,8 +106,7 @@ std::string toNumpyFormat(const ImageFormat format)
   throw std::runtime_error("unknown image format");
 }
 
-std::variant<int, double, std::string, TrackingStatus, SLAMEvent>
-getMetadataValue(const MetaDataInterface& obj)
+std::variant<int, double, std::string> getMetadataValue(const MetaDataInterface& obj)
 {
   const auto checkErrorCode = [](const std::error_code& ec)
   {
@@ -116,23 +122,7 @@ getMetadataValue(const MetaDataInterface& obj)
     {
       int value;
       checkErrorCode(obj.getValue(value));
-
-      switch (obj.getID())
-      {
-        // special case for the trackign status
-        case (MetaDataID::TrackingStatus):
-        {
-          return TrackingStatus{static_cast<EnumBaseT>(value)};
-        }
-        case (MetaDataID::SLAMEvent):
-        {
-          return SLAMEvent{static_cast<EnumBaseT>(value)};
-        }
-        default:
-        {
-          return {value};
-        }
-      }
+      return {value};
     }
     case (MetaDataInterface::ValueType::Floating):
     {
@@ -159,14 +149,14 @@ template <typename ClockT>
 py::class_<MeasurementPoint<ClockT>, std::shared_ptr<MeasurementPoint<ClockT>>>
 makeMeasurementPoint(py::module& module, const std::string& prefix)
 {
-  return py::class_<MeasurementPoint<ClockT>, std::shared_ptr<MeasurementPoint<ClockT>>>(
-           module, (prefix + "MeasurementPoint").c_str())
-    .def_property_readonly("sensor_id", &MeasurementPoint<ClockT>::getSensorID)
+  return py::class_<MeasurementPoint<ClockT>,
+                    FixedMeasurementPoint,
+                    std::shared_ptr<MeasurementPoint<ClockT>>>(module,
+                                                               (prefix + "MeasurementPoint").c_str())
     .def_property_readonly("hw_timestamp", &MeasurementPoint<ClockT>::getHWTimestamp)
     .def_property_readonly("acquisition_timestamp", &MeasurementPoint<ClockT>::getAcquisitionTimestamp)
     .def_property_readonly("source_acquisition_timestamp",
-                           &MeasurementPoint<ClockT>::getSourceAcquisitionTimestamp)
-    .def_property_readonly("reference_frame", &MeasurementPoint<ClockT>::getReferenceFrame);
+                           &MeasurementPoint<ClockT>::getSourceAcquisitionTimestamp);
 }
 
 template <typename Class, typename... Others>
@@ -222,9 +212,22 @@ void objects(pybind11::module& module)
 
   py::class_<FrameSyncInterface, std::shared_ptr<FrameSyncInterface>>(coreModule, "FrameSync");
 
+  py::class_<FixedMeasurementPoint, std::shared_ptr<FixedMeasurementPoint>>(coreModule,
+                                                                            "FixedMeasurementPoint")
+    .def_property_readonly("sensor_id", &FixedMeasurementPoint::getSensorID)
+    .def_property_readonly("reference_frame", &FixedMeasurementPoint::getReferenceFrame);
+
   detail::makeMeasurementPoint<camera_clock>(coreModule, "Camera");
   detail::makeMeasurementPoint<odometry_clock>(coreModule, "Odometry");
   detail::makeMeasurementPoint<imu_clock>(coreModule, "IMU");
+
+  auto staticPose =
+    py::class_<StaticPoseInterface, FixedMeasurementPoint, std::shared_ptr<StaticPoseInterface>>(
+      coreModule, "StaticPose", py::multiple_inheritance())
+      .def_property_readonly("rotation", &StaticPoseInterface::getRotation)
+      .def_property_readonly("translation", &StaticPoseInterface::getTranslation)
+      .def_property_readonly("child_reference_frame", &StaticPoseInterface::getChildReferenceFrame);
+  detail::addCovarianceProperty(staticPose);
 
   detail::makePose<camera_clock>(coreModule, "Camera");
   detail::makePose<odometry_clock>(coreModule, "Odometry");
@@ -292,8 +295,9 @@ void objects(pybind11::module& module)
     .def_property_readonly("position", &LandmarkInterface::getPosition)
     .def_property_readonly("is_global", &LandmarkInterface::isGlobal);
 
-  auto sparseMap = py::class_<SparseMapInterface, MeasurementPoint<camera_clock>, std::shared_ptr<SparseMapInterface>>(
-    coreModule, "SparseMap", py::multiple_inheritance());
+  auto sparseMap =
+    py::class_<SparseMapInterface, MeasurementPoint<camera_clock>, std::shared_ptr<SparseMapInterface>>(
+      coreModule, "SparseMap", py::multiple_inheritance());
 
   py::enum_<SparseMapInterface::MapType>(sparseMap, "MapType")
     .value("Active", SparseMapInterface::MapType::Active)
@@ -303,13 +307,11 @@ void objects(pybind11::module& module)
   detail::addSequenceMethods(sparseMap);
 
   py::enum_<MetaDataID>(coreModule, "MetaDataId")
-    .value("TrackingStatus", MetaDataID::TrackingStatus)
     .value("NumFeatures", MetaDataID::NumFeatures)
     .value("TrackedFeatures", MetaDataID::TrackedFeatures)
     .value("DistanceTravelled", MetaDataID::DistanceTravelled)
     .value("ProcessedFrameRate", MetaDataID::ProcessedFrameRate)
-    .value("TotalDroppedFrames", MetaDataID::TotalDroppedFrames)
-    .value("SLAMEvent", MetaDataID::SLAMEvent);
+    .value("TotalDroppedFrames", MetaDataID::TotalDroppedFrames);
 
   py::class_<MetaDataInterface, std::shared_ptr<MetaDataInterface>>(coreModule, "MetaData")
     .def_property_readonly("id", &MetaDataInterface::getID)
@@ -418,6 +420,53 @@ void objects(pybind11::module& module)
     py::class_<TrackingStatusListInterface, std::shared_ptr<TrackingStatusListInterface>>(
       coreModule, "TrackingStatusList");
   detail::addSequenceMethods(trackingStatusList);
+
+  auto slamEventList = py::class_<SLAMEventListInterface, std::shared_ptr<SLAMEventListInterface>>(
+    coreModule, "SLAMEventList");
+  detail::addSequenceMethods(slamEventList);
+
+  py::class_<SLAMStatusInterface, MeasurementPoint<camera_clock>, std::shared_ptr<SLAMStatusInterface>>(
+    coreModule, "SLAMStatus", py::multiple_inheritance())
+    .def_property_readonly("tracking_status", &SLAMStatusInterface::getTrackingStatus)
+    .def_property_readonly("events",
+                           &SLAMStatusInterface::getEvents,
+                           py::return_value_policy::reference_internal);
+
+  py::enum_<PredefinedSemanticLabel>(coreModule, "PredefinedSemanticLabel")
+    .value("Person", PredefinedSemanticLabel::Person)
+    .value("Background", PredefinedSemanticLabel::Background)
+    .value("Unknown", PredefinedSemanticLabel::Unknown);
+
+  py::class_<SemanticLabel, std::shared_ptr<SemanticLabel>>(coreModule, "SemanticLabel")
+    .def(py::init<PredefinedSemanticLabel>())
+    .def(py::init<std::string>())
+    .def_property_readonly("name", &SemanticLabel::name)
+    .def(py::self == py::self)
+    .def(py::self != py::self)
+    .def(py::self < py::self);
+
+  py::class_<PanopticLabel, std::shared_ptr<PanopticLabel>>(coreModule, "PanopticLabel")
+    .def(py::init<SemanticLabel, bool>())
+    .def_readwrite("label", &PanopticLabel::label)
+    .def_readwrite("isThing", &PanopticLabel::isThing);
+
+  py::class_<PanopticBoundingBox3D, MeasurementPoint<camera_clock>, std::shared_ptr<PanopticBoundingBox3D>>(
+    coreModule, "PanopticBoundingBox3D")
+    .def(py::init<>())
+    .def_property_readonly("bbox", &PanopticBoundingBox3D::getBBox)
+    .def_property_readonly("label", &PanopticBoundingBox3D::getLabel)
+    .def_property_readonly("instance", &PanopticBoundingBox3D::getInstance);
+
+  auto panopticBoundingBox3DList =
+    py::class_<PanopticBoundingBox3DList, std::shared_ptr<PanopticBoundingBox3DList>>(
+      coreModule, "PanopticBoundingBox3DList");
+  detail::addSequenceMethods(panopticBoundingBox3DList);
+
+  py::class_<PanopticSegmentationResultInterface, std::shared_ptr<PanopticSegmentationResultInterface>>(
+    coreModule, "PanopticSegmentationResult")
+    .def_property_readonly("pixel_labels", &PanopticSegmentationResultInterface::getPixelLabelIds)
+    .def_property_readonly("pixel_instances",
+                           &PanopticSegmentationResultInterface::getPixelInstanceIds);
 }
 
 } // namespace slamcore::python
